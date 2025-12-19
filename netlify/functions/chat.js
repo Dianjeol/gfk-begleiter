@@ -1,6 +1,7 @@
 /**
  * Netlify Serverless Function - DeepSeek API Proxy
  * Hält den API Key sicher auf dem Server
+ * Requires Node.js 18+ (native fetch)
  */
 
 exports.handler = async (event) => {
@@ -34,7 +35,7 @@ exports.handler = async (event) => {
             statusCode: 500,
             headers,
             body: JSON.stringify({
-                error: 'API Key nicht konfiguriert. Bitte DEEPSEEK_API_KEY in Netlify setzen.'
+                error: 'API Key not configured. Please set DEEPSEEK_API_KEY in Netlify environment variables.'
             })
         };
     }
@@ -46,7 +47,7 @@ exports.handler = async (event) => {
             return {
                 statusCode: 400,
                 headers,
-                body: JSON.stringify({ error: 'Ungültige Anfrage: messages fehlt' })
+                body: JSON.stringify({ error: 'Invalid request: messages missing' })
             };
         }
 
@@ -98,7 +99,8 @@ exports.handler = async (event) => {
             statusCode: 500,
             headers,
             body: JSON.stringify({
-                error: 'Interner Serverfehler. Bitte versuche es erneut.'
+                error: 'Internal server error. Please try again.',
+                details: error.message
             })
         };
     }
@@ -107,14 +109,14 @@ exports.handler = async (event) => {
 function getErrorMessage(status) {
     switch (status) {
         case 401:
-            return 'Ungültiger API Key. Bitte in Netlify prüfen.';
+            return 'Invalid API Key. Please check DEEPSEEK_API_KEY in Netlify.';
         case 429:
-            return 'Zu viele Anfragen. Bitte warte einen Moment.';
+            return 'Too many requests. Please wait a moment.';
         case 500:
         case 502:
         case 503:
-            return 'DeepSeek-Server hat gerade Probleme. Bitte später erneut versuchen.';
+            return 'DeepSeek server is having issues. Please try again later.';
         default:
-            return 'Ein Fehler ist aufgetreten.';
+            return 'An error occurred.';
     }
 }
