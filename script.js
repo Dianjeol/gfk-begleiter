@@ -250,8 +250,8 @@ async function sendToServerless(userMessage) {
         { role: 'user', content: userMessage }
     ];
 
-    // Use the shorter path that seems to work for ping
-    const functionUrl = '/functions/chat';
+    // Use direct path
+    const functionUrl = '/.netlify/functions/chat';
 
     try {
         console.log(`Calling API at: ${functionUrl}`);
