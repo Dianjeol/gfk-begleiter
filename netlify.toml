@@ -39,4 +39,14 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# NOTE: No SPA fallback redirect needed - this was blocking /.netlify/functions/*
+# Explicitly handle functions access
+[[redirects]]
+  from = "/.netlify/*"
+  to = "/.netlify/:splat"
+  status = 200
+
+# Fallback for other routes (only if strictly needed, but let's keep it clean for now)
+# [[redirects]]
+#  from = "/*"
+#  to = "/index.html"
+#  status = 200
