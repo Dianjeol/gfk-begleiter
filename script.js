@@ -93,32 +93,11 @@ function init() {
     if (state.messages.length === 0) {
         addMessage('ai', getWelcomeMessage());
     }
-
-    // Test backend connection
-    checkBackendConnection();
-}
-
-async function checkBackendConnection() {
-    try {
-        const response = await fetch('/functions/ping');
-        if (response.ok) {
-            console.log('Backend connected!');
-        } else {
-            console.warn('Backend reachable but returned error:', response.status);
-        }
-    } catch (e) {
-        console.error('Backend connection check failed:', e);
-        // Show subtle warning
-        elements.statusText.textContent = 'Offline? (Backend not reachable)';
-        elements.statusText.classList.add('text-red-300');
-    }
 }
 
 function populateLanguageSelector() {
     if (!elements.languageSelect) return;
-
     elements.languageSelect.innerHTML = '';
-
     Object.entries(TRANSLATIONS).forEach(([code, lang]) => {
         const option = document.createElement('option');
         option.value = code;
@@ -130,12 +109,8 @@ function populateLanguageSelector() {
 
 function applyLanguage() {
     const lang = TRANSLATIONS[state.language] || TRANSLATIONS.en;
-
-    // Update RTL
     document.documentElement.dir = isRTL() ? 'rtl' : 'ltr';
     document.body.classList.toggle('rtl', isRTL());
-
-    // Update UI elements
     if (elements.headerTitle) elements.headerTitle.textContent = t('title');
     if (elements.statusText) elements.statusText.textContent = t('subtitle');
     if (elements.messageInput) elements.messageInput.placeholder = t('placeholder');
@@ -145,8 +120,6 @@ function applyLanguage() {
     if (elements.clearChatText) elements.clearChatText.textContent = t('clearChat');
     if (elements.languageLabel) elements.languageLabel.textContent = t('language');
     if (elements.welcomeMessage) elements.welcomeMessage.textContent = t('welcome');
-
-    // Update page title
     document.title = `${t('title')} | Empathic Chat`;
 }
 
@@ -155,24 +128,15 @@ function applyLanguage() {
 // ==========================================
 
 function setupEventListeners() {
-    // Form submission
     elements.chatForm.addEventListener('submit', handleSubmit);
-
-    // Input changes
     elements.messageInput.addEventListener('input', updateSendButtonState);
     elements.messageInput.addEventListener('keydown', handleKeyDown);
-
-    // Settings modal
     elements.settingsBtn.addEventListener('click', openSettingsModal);
     elements.closeModal.addEventListener('click', closeSettingsModal);
     elements.settingsModal.addEventListener('click', (e) => {
         if (e.target === elements.settingsModal) closeSettingsModal();
     });
-
-    // Clear chat
     elements.clearChat.addEventListener('click', clearChatHistory);
-
-    // Language change
     if (elements.languageSelect) {
         elements.languageSelect.addEventListener('change', handleLanguageChange);
     }
@@ -182,15 +146,12 @@ function handleLanguageChange(e) {
     state.language = e.target.value;
     localStorage.setItem('chat_language', state.language);
     applyLanguage();
-
-    // Update typing indicator text if visible
     const typingText = elements.typingIndicator.querySelector('span');
     if (typingText) typingText.textContent = t('typing');
 }
 
 function setupTextareaAutoResize() {
     const textarea = elements.messageInput;
-
     textarea.addEventListener('input', () => {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
@@ -203,19 +164,13 @@ function setupTextareaAutoResize() {
 
 async function handleSubmit(e) {
     e.preventDefault();
-
     const message = elements.messageInput.value.trim();
     if (!message || state.isTyping) return;
 
-    // Add user message
     addMessage('user', message);
-
-    // Clear input
     elements.messageInput.value = '';
     elements.messageInput.style.height = 'auto';
     updateSendButtonState();
-
-    // Show typing indicator
     showTypingIndicator();
 
     try {
@@ -225,12 +180,11 @@ async function handleSubmit(e) {
     } catch (error) {
         hideTypingIndicator();
         console.error('API Error:', error);
-        showError(error.message || 'An error occurred. Please try again.');
+        showError(error.message);
     }
 }
 
 function handleKeyDown(e) {
-    // Send on Enter (without Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         elements.chatForm.dispatchEvent(new Event('submit'));
@@ -238,43 +192,42 @@ function handleKeyDown(e) {
 }
 
 async function sendToServerless(userMessage) {
+    // 1. Prepare messages carefully
     const conversationHistory = state.messages.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content
+        content: String(msg.content) // Ensure string
     }));
 
-    // Add system prompt at the beginning (language-specific)
+    const sysPrompt = getSystemPrompt();
     const messages = [
-        { role: 'system', content: getSystemPrompt() },
+        { role: 'system', content: sysPrompt ? String(sysPrompt) : "You are a helpful assistant." },
         ...conversationHistory,
-        { role: 'user', content: userMessage }
+        { role: 'user', content: String(userMessage) }
     ];
 
-    // Use direct path
+    // Log payload for debugging (user can check console)
+    console.log("Sending payload:", { messages });
+
+    // Use direct path that worked in test-cors.html
     const functionUrl = '/.netlify/functions/chat';
 
     try {
-        console.log(`Calling API at: ${functionUrl}`);
-
         const response = await fetch(functionUrl, {
-            method: 'POST',
+            method: 'POST', // Explicitly POST
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json' // Explicitly JSON
             },
-            body: JSON.stringify({ messages })
+            body: JSON.stringify({ messages: messages }) // Explicit object structure
         });
 
-        // Handle HTTP errors
         if (!response.ok) {
-            let errorDetails = `Server Error (${response.status})`;
+            let errorDetails = `Server HTTP Error (${response.status})`;
             try {
                 const data = await response.json();
                 errorDetails = data.error || errorDetails;
             } catch (e) {
                 const text = await response.text();
-                errorDetails = response.status === 404 ? 'API Function not found (404)'
-                    : response.status === 500 ? 'Internal Server Error (500)'
-                        : text.substring(0, 100);
+                errorDetails = `Server Error (${response.status}): ${text.substring(0, 100)}`;
             }
             throw new Error(errorDetails);
         }
@@ -283,17 +236,13 @@ async function sendToServerless(userMessage) {
         return data.content;
 
     } catch (error) {
-        console.error('Fetch Error:', error);
+        console.error('Fetch Failed:', error);
 
-        // Detailed error for debugging
-        let userMsg = 'Connection failed.';
-        if (error.message.includes('Failed to fetch')) {
-            userMsg = `Network Error (Failed to reach ${functionUrl}). Check internet or if Function is deployed.`;
-        } else {
-            userMsg = error.message;
+        // Detailed error for fallback
+        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+            throw new Error(`Connection failed to ${functionUrl}. Check your internet connection or AdBlocker.`);
         }
-
-        throw new Error(userMsg);
+        throw error;
     }
 }
 
@@ -308,7 +257,6 @@ function addMessage(role, content) {
         content: content,
         timestamp: new Date().toISOString()
     };
-
     state.messages.push(message);
     saveMessages();
     renderMessage(message);
@@ -318,9 +266,7 @@ function addMessage(role, content) {
 function renderMessage(message) {
     const bubble = document.createElement('div');
     bubble.className = `message-bubble ${message.role} relative px-4 py-2 shadow-sm`;
-
     const time = formatTime(message.timestamp);
-
     bubble.innerHTML = `
         <p class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(message.content)}</p>
         <div class="message-time mt-1 ${message.role === 'user' ? 'text-right' : ''}">
@@ -328,17 +274,13 @@ function renderMessage(message) {
             ${message.role === 'user' ? '<svg class="inline w-4 h-4 text-blue-500" viewBox="0 0 16 15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.255 3.185a.32.32 0 0 0 .484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/></svg>' : ''}
         </div>
     `;
-
     elements.chatMessages.appendChild(bubble);
 }
 
 function loadMessages() {
-    // Clear existing (except welcome message)
     const welcomeMsg = elements.chatMessages.querySelector('.justify-center');
     elements.chatMessages.innerHTML = '';
     if (welcomeMsg) elements.chatMessages.appendChild(welcomeMsg);
-
-    // Render all stored messages
     state.messages.forEach(msg => renderMessage(msg));
     scrollToBottom(false);
 }
@@ -353,8 +295,6 @@ function clearChatHistory() {
         saveMessages();
         loadMessages();
         closeSettingsModal();
-
-        // Add welcome message again
         addMessage('ai', getWelcomeMessage());
     }
 }
