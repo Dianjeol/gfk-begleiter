@@ -1,0 +1,271 @@
+/* ==========================================
+   GFK Begleiter - Custom Styles
+   WhatsApp-inspired Chat UI
+   ========================================== */
+
+/* Base Styles */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    overscroll-behavior: none;
+}
+
+/* Safe Area Padding for iOS */
+.safe-area-top {
+    padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Chat Background Pattern */
+.chat-pattern {
+    background-color: #e5ddd5;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d1c4b8' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Message Bubbles */
+.message-bubble {
+    max-width: 85%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+.message-bubble.user {
+    background: linear-gradient(135deg, #dcf8c6 0%, #d4f5bc 100%);
+    border-radius: 18px 18px 4px 18px;
+    margin-left: auto;
+}
+
+.message-bubble.ai {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 18px 18px 18px 4px;
+}
+
+/* Message tail effect */
+.message-bubble.user::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -6px;
+    width: 12px;
+    height: 12px;
+    background: inherit;
+    border-radius: 0 0 12px 0;
+    clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.message-bubble.ai::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -6px;
+    width: 12px;
+    height: 12px;
+    background: inherit;
+    border-radius: 0 0 0 12px;
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+/* Message Animation */
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Typing Indicator Dots */
+.typing-dots span {
+    animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.typing-dots span:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.typing-dots span:nth-child(3) {
+    animation-delay: 0.32s;
+}
+
+@keyframes typingBounce {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Textarea Auto-resize */
+#message-input {
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+#message-input:focus {
+    box-shadow: 0 0 0 3px rgba(18, 140, 126, 0.15);
+}
+
+/* Modal Animations */
+#settings-modal.show {
+    display: flex !important;
+}
+
+#settings-modal.show #modal-content {
+    animation: modalIn 0.3s ease-out forwards;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Scrollbar Styling */
+#chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+#chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+#chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* Time Stamps */
+.message-time {
+    font-size: 0.65rem;
+    color: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.message-bubble.user .message-time {
+    justify-content: flex-end;
+}
+
+/* Send Button */
+#send-btn {
+    transition: all 0.2s ease;
+}
+
+#send-btn:not(:disabled):active {
+    transform: scale(0.95);
+}
+
+/* Overlay Animation */
+#api-key-overlay {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#api-key-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Settings Button Pulse (when no API key) */
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+    }
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 640px) {
+    .message-bubble {
+        max-width: 88%;
+    }
+    
+    #chat-messages {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .chat-pattern {
+        background-color: #0d1418;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23233138' fill-opacity='0.5'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .message-bubble.ai {
+        background: linear-gradient(135deg, #1f2c34 0%, #233138 100%);
+        color: #e9edef;
+    }
+    
+    .message-bubble.user {
+        background: linear-gradient(135deg, #005c4b 0%, #004d40 100%);
+        color: #e9edef;
+    }
+    
+    .message-time {
+        color: rgba(255, 255, 255, 0.5);
+    }
+}
+
+/* Error Message Styling */
+.error-message {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-left: 4px solid #ef4444;
+    color: #991b1b;
+}
+
+/* System Message */
+.system-message {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Prevent selection during scroll */
+#chat-messages.scrolling * {
+    user-select: none;
+}
+
+/* iOS Input Focus Fix */
+@supports (-webkit-touch-callout: none) {
+    #message-input:focus {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
