@@ -231,21 +231,44 @@ async function sendToServerless(userMessage) {
         { role: 'user', content: userMessage }
     ];
 
-    const response = await fetch('/.netlify/functions/chat', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ messages })
-    });
+    try {
+        const response = await fetch('/.netlify/functions/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ messages })
+        });
 
-    const data = await response.json();
+        // Handle HTTP errors
+        if (!response.ok) {
+            let errorDetails = `Server Error (${response.status})`;
+            try {
+                const data = await response.json();
+                errorDetails = data.error || errorDetails;
+            } catch (e) {
+                // If not JSON, try text (often HTML for 500/502)
+                const text = await response.text();
+                // If text is huge, truncate it
+                errorDetails = response.status === 404 ? 'Function not found (404)'
+                    : response.status === 500 ? 'Internal Server Error (500)'
+                        : text.substring(0, 50);
+                console.error('Non-JSON Error Response:', text);
+            }
+            throw new Error(errorDetails);
+        }
 
-    if (!response.ok) {
-        throw new Error(data.error || 'Server error');
+        const data = await response.json();
+        return data.content;
+
+    } catch (error) {
+        console.error('Fetch Error:', error);
+        // Better user message
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('Connection failed. Please check your internet or try again later.');
+        }
+        throw error;
     }
-
-    return data.content;
 }
 
 // ==========================================
