@@ -231,8 +231,13 @@ async function sendToServerless(userMessage) {
         { role: 'user', content: userMessage }
     ];
 
+    // Build absolute URL
+    const functionUrl = `${window.location.origin}/.netlify/functions/chat`;
+
     try {
-        const response = await fetch('/.netlify/functions/chat', {
+        console.log(`Calling API at: ${functionUrl}`);
+
+        const response = await fetch(functionUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -247,13 +252,10 @@ async function sendToServerless(userMessage) {
                 const data = await response.json();
                 errorDetails = data.error || errorDetails;
             } catch (e) {
-                // If not JSON, try text (often HTML for 500/502)
                 const text = await response.text();
-                // If text is huge, truncate it
-                errorDetails = response.status === 404 ? 'Function not found (404)'
+                errorDetails = response.status === 404 ? 'API Function not found (404)'
                     : response.status === 500 ? 'Internal Server Error (500)'
-                        : text.substring(0, 50);
-                console.error('Non-JSON Error Response:', text);
+                        : text.substring(0, 100);
             }
             throw new Error(errorDetails);
         }
@@ -263,11 +265,16 @@ async function sendToServerless(userMessage) {
 
     } catch (error) {
         console.error('Fetch Error:', error);
-        // Better user message
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            throw new Error('Connection failed. Please check your internet or try again later.');
+
+        // Detailed error for debugging
+        let userMsg = 'Connection failed.';
+        if (error.message.includes('Failed to fetch')) {
+            userMsg = `Network Error (Failed to reach ${functionUrl}). Check internet or if Function is deployed.`;
+        } else {
+            userMsg = error.message;
         }
-        throw error;
+
+        throw new Error(userMsg);
     }
 }
 
