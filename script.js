@@ -216,30 +216,26 @@ function handleKeyDown(e) {
 }
 
 async function sendToServerless(userMessage) {
-    // === DEBUG MODE: SIMPLIFIED PAYLOAD ===
-    // If complex payload fails, we use this simple one to prove it works.
+    // === PROD MODE: FULL HISTORY ===
 
-    // Normal:
-    /*
-    const conversationHistory = state.messages.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: String(msg.content)
-    }));
-    
+    // 1. Sanitize History: Filter out empty/invalid messages
+    const conversationHistory = state.messages
+        .filter(msg => msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0)
+        .slice(-20) // Keep reasonable context limit
+        .map(msg => ({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content.trim()
+        }));
+
+    // 2. Add System Prompt
     const sysPrompt = getSystemPrompt();
     const messages = [
         { role: 'system', content: sysPrompt ? String(sysPrompt) : "You are a helpful assistant." },
         ...conversationHistory,
-        { role: 'user', content: String(userMessage) }
-    ];
-    */
-
-    // Simple Test Payload (ignoring history for now to fix connection):
-    const messages = [
-        { role: 'user', content: String(userMessage) }
+        { role: 'user', content: String(userMessage).trim() }
     ];
 
-    console.log("SENDING SIMPLE PAYLOAD FOR DEBUG:", messages);
+    console.log("Sending Sanitized Payload:", { msgCount: messages.length });
 
     // Use direct path
     const functionUrl = '/.netlify/functions/chat';
