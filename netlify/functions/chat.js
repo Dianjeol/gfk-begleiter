@@ -1,51 +1,57 @@
 /**
  * Netlify Serverless Function - DeepSeek API Proxy
- * Proven working logic (based on test-llm.js)
+ * Optimized for CORS
  */
 
 exports.handler = async (event) => {
-    // 1. Simple CORS Headers (Proven to work)
+    // 1. Robust CORS Headers
     const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Origin': '*', // oder spezifische Domain wenn nötig, aber * ist ok für public API
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json'
     };
 
-    // 2. Handle Preflight
+    // 2. Handle Preflight (OPTIONS)
     if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
         return {
-            statusCode: 500,
+            statusCode: 200,
             headers,
-            body: JSON.stringify({ error: 'Configuration Error: No API Key' })
+            body: ''
         };
     }
 
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Configuration Error: No API Key' }) };
+    }
+
     try {
-        // 3. Parse Body
-        if (!event.body) {
-            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body missing' }) };
+        // 3. Safe Body Parsing
+        let messages = [];
+
+        if (event.body) {
+            try {
+                const body = JSON.parse(event.body);
+                messages = body.messages;
+            } catch (e) {
+                // Ignore parse error, maybe it's not JSON
+            }
         }
 
-        let messages;
-        try {
-            const body = JSON.parse(event.body);
-            messages = body.messages;
-        } catch (e) {
-            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) };
+        // Fallback for empty/invalid messages (so it doesn't crash like before)
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            // For debugging: return a hello message if payload fails (like test-llm did implicitly)
+            // But better: return error, BUT make sure we don't crash before headers are sent.
+            console.log("Invalid body, payload missing");
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Invalid request body. Expected {"messages": [...]}' })
+            };
         }
 
-        if (!messages || !Array.isArray(messages)) {
-            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid messages array' }) };
-        }
-
-        // 4. API Call (Proven fetch logic)
+        // 4. API Call
         const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
@@ -55,31 +61,26 @@ exports.handler = async (event) => {
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: messages,
-                temperature: 0.8,
-                max_tokens: 500,
-                presence_penalty: 0.1,
-                frequency_penalty: 0.1
+                temperature: 0.8, // Slightly more creative for empathy
+                max_tokens: 500
             })
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error("DeepSeek API Error:", errorText);
+            const text = await response.text();
+            console.error("DeepSeek API Error:", text);
             return {
                 statusCode: response.status,
                 headers,
-                body: JSON.stringify({ error: `Provider Error (${response.status})`, details: errorText })
+                body: JSON.stringify({ error: `DeepSeek Error (${response.status})`, details: text })
             };
         }
 
         const data = await response.json();
-
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({
-                content: data.choices[0].message.content
-            })
+            body: JSON.stringify({ content: data.choices[0].message.content })
         };
 
     } catch (error) {
@@ -87,10 +88,7 @@ exports.handler = async (event) => {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({
-                error: 'Internal Server Error',
-                details: error.message
-            })
+            body: JSON.stringify({ error: 'Internal Server Error', details: error.message })
         };
     }
 };

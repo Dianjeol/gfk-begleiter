@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CORS Test</title>
+</head>
+
+<body>
+    <h1>CORS / Payload Test</h1>
+    <button onclick="testCORS()">Test with JSON Payload</button>
+    <pre id="output">Waiting...</pre>
+
+    <script>
+        async function testCORS() {
+            const output = document.getElementById('output');
+            output.textContent = 'Testing headers & payload...';
+
+            try {
+                // Same call structure as the main app
+                const response = await fetch('/.netlify/functions/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: 'Hello from CORS Test' }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Status: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                output.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                output.textContent = 'Error: ' + e.message;
+            }
+        }
+    </script>
+</body>
+
+</html>
