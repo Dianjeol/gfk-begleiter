@@ -93,6 +93,25 @@ function init() {
     if (state.messages.length === 0) {
         addMessage('ai', getWelcomeMessage());
     }
+
+    // Test backend connection
+    checkBackendConnection();
+}
+
+async function checkBackendConnection() {
+    try {
+        const response = await fetch('/.netlify/functions/ping');
+        if (response.ok) {
+            console.log('Backend connected!');
+        } else {
+            console.warn('Backend reachable but returned error:', response.status);
+        }
+    } catch (e) {
+        console.error('Backend connection check failed:', e);
+        // Show subtle warning
+        elements.statusText.textContent = 'Offline? (Backend not reachable)';
+        elements.statusText.classList.add('text-red-300');
+    }
 }
 
 function populateLanguageSelector() {
@@ -187,37 +206,51 @@ async function handleSubmit(e) {
 function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        elements.chatForm.dispatchEvent(new Event('submit'));
+        // Use requestSubmit for modern browsers to avoid warnings
+        if (elements.chatForm.requestSubmit) {
+            elements.chatForm.requestSubmit();
+        } else {
+            elements.chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        }
     }
 }
 
 async function sendToServerless(userMessage) {
-    // 1. Prepare messages carefully
+    // === DEBUG MODE: SIMPLIFIED PAYLOAD ===
+    // If complex payload fails, we use this simple one to prove it works.
+
+    // Normal:
+    /*
     const conversationHistory = state.messages.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'assistant',
-        content: String(msg.content) // Ensure string
+        content: String(msg.content)
     }));
-
+    
     const sysPrompt = getSystemPrompt();
     const messages = [
         { role: 'system', content: sysPrompt ? String(sysPrompt) : "You are a helpful assistant." },
         ...conversationHistory,
         { role: 'user', content: String(userMessage) }
     ];
+    */
 
-    // Log payload for debugging (user can check console)
-    console.log("Sending payload:", { messages });
+    // Simple Test Payload (ignoring history for now to fix connection):
+    const messages = [
+        { role: 'user', content: String(userMessage) }
+    ];
 
-    // Use direct path that worked in test-cors.html
+    console.log("SENDING SIMPLE PAYLOAD FOR DEBUG:", messages);
+
+    // Use direct path
     const functionUrl = '/.netlify/functions/chat';
 
     try {
         const response = await fetch(functionUrl, {
-            method: 'POST', // Explicitly POST
+            method: 'POST',
             headers: {
-                'Content-Type': 'application/json' // Explicitly JSON
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ messages: messages }) // Explicit object structure
+            body: JSON.stringify({ messages: messages })
         });
 
         if (!response.ok) {
@@ -237,10 +270,8 @@ async function sendToServerless(userMessage) {
 
     } catch (error) {
         console.error('Fetch Failed:', error);
-
-        // Detailed error for fallback
         if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
-            throw new Error(`Connection failed to ${functionUrl}. Check your internet connection or AdBlocker.`);
+            throw new Error(`Connection failed to ${functionUrl}. Check your internet connection.`);
         }
         throw error;
     }
