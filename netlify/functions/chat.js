@@ -5,6 +5,9 @@
  */
 
 exports.handler = async (event) => {
+    console.log("Chat Function called");
+    console.log("Method:", event.httpMethod);
+
     // CORS Headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -30,26 +33,37 @@ exports.handler = async (event) => {
     // Get API key from environment
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
+    console.log("API Key check:", apiKey ? "Present (starts with " + apiKey.substring(0, 3) + ")" : "Missing");
+
     if (!apiKey) {
+        console.error("API Error: Key missing");
         return {
             statusCode: 500,
             headers,
             body: JSON.stringify({
-                error: 'API Key not configured. Please set DEEPSEEK_API_KEY in Netlify environment variables.'
+                error: 'Configuration Error: DEEPSEEK_API_KEY is missing in Netlify settings.'
             })
         };
     }
 
     try {
+        if (!event.body) {
+            console.error("Request Error: Body missing");
+            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Body missing' }) };
+        }
+
         const { messages } = JSON.parse(event.body);
 
         if (!messages || !Array.isArray(messages)) {
+            console.error("Request Error: Messages invalid");
             return {
                 statusCode: 400,
                 headers,
-                body: JSON.stringify({ error: 'Invalid request: messages missing' })
+                body: JSON.stringify({ error: 'Invalid request: messages missing or not an array' })
             };
         }
+
+        console.log("Sending request to DeepSeek API...");
 
         // Call DeepSeek API
         const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -68,16 +82,18 @@ exports.handler = async (event) => {
             })
         });
 
+        console.log("DeepSeek Response Status:", response.status);
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('DeepSeek API Error:', response.status, errorData);
+            const errorText = await response.text();
+            console.error('DeepSeek API Error Body:', errorText);
 
             return {
                 statusCode: response.status,
                 headers,
                 body: JSON.stringify({
-                    error: getErrorMessage(response.status),
-                    details: errorData
+                    error: `DeepSeek API Error (${response.status})`,
+                    details: errorText
                 })
             };
         }
@@ -93,30 +109,16 @@ exports.handler = async (event) => {
         };
 
     } catch (error) {
-        console.error('Function Error:', error);
+        console.error('CRITICAL Function Error:', error);
 
         return {
             statusCode: 500,
             headers,
             body: JSON.stringify({
-                error: 'Internal server error. Please try again.',
-                details: error.message
+                error: 'Internal function error',
+                details: error.message,
+                stack: error.stack
             })
         };
     }
 };
-
-function getErrorMessage(status) {
-    switch (status) {
-        case 401:
-            return 'Invalid API Key. Please check DEEPSEEK_API_KEY in Netlify.';
-        case 429:
-            return 'Too many requests. Please wait a moment.';
-        case 500:
-        case 502:
-        case 503:
-            return 'DeepSeek server is having issues. Please try again later.';
-        default:
-            return 'An error occurred.';
-    }
-}

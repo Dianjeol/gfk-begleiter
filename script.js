@@ -93,6 +93,25 @@ function init() {
     if (state.messages.length === 0) {
         addMessage('ai', getWelcomeMessage());
     }
+
+    // Test backend connection
+    checkBackendConnection();
+}
+
+async function checkBackendConnection() {
+    try {
+        const response = await fetch('/functions/ping');
+        if (response.ok) {
+            console.log('Backend connected!');
+        } else {
+            console.warn('Backend reachable but returned error:', response.status);
+        }
+    } catch (e) {
+        console.error('Backend connection check failed:', e);
+        // Show subtle warning
+        elements.statusText.textContent = 'Offline? (Backend not reachable)';
+        elements.statusText.classList.add('text-red-300');
+    }
 }
 
 function populateLanguageSelector() {
@@ -231,8 +250,8 @@ async function sendToServerless(userMessage) {
         { role: 'user', content: userMessage }
     ];
 
-    // Build absolute URL
-    const functionUrl = `${window.location.origin}/.netlify/functions/chat`;
+    // Use the shorter path that seems to work for ping
+    const functionUrl = '/functions/chat';
 
     try {
         console.log(`Calling API at: ${functionUrl}`);
