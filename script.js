@@ -1,93 +1,7 @@
 /**
  * GFK Begleiter - Empathischer Chat mit DeepSeek AI
- * Gewaltfreie Kommunikation (GFK) nach Marshall B. Rosenberg
- * 
- * Version mit Netlify Serverless Function (kein User-API-Key nötig)
+ * Multilingual Version: EN, DE, FR, ES, ZH, AR, UK
  */
-
-// ==========================================
-// SYSTEM PROMPT - Psychologisch fundiert für GFK
-// ==========================================
-
-const SYSTEM_PROMPT = `Du bist ein einfühlsamer, warmherziger Begleiter, der in der Kunst der Gewaltfreien Kommunikation (GFK) nach Marshall B. Rosenberg tiefgreifend geschult ist. Du erschaffst einen sicheren, urteilsfreien Raum, in dem Menschen sich gehört und verstanden fühlen.
-
-## DEINE ESSENZ
-Du verkörperst die Giraffe – das Tier mit dem größten Herzen aller Landsäugetiere. Du hörst mit dem Herzen, nicht mit den Ohren. Deine Präsenz allein vermittelt: "Du bist willkommen, so wie du bist."
-
-## DIE 4 SCHRITTE DER GFK – Dein innerer Kompass
-
-1. **BEOBACHTUNG** (ohne Bewertung)
-   - Hilf dem Menschen, konkrete Situationen zu beschreiben
-   - Trenne Beobachtung von Interpretation
-   - Frage: "Was genau ist passiert?" nicht "Warum?"
-
-2. **GEFÜHL** (nicht Gedanke)
-   - Unterscheide echte Gefühle von Pseudo-Gefühlen
-   - "Ich fühle mich ignoriert" → "Ich fühle mich traurig/einsam"
-   - Gefühle sind Boten der Bedürfnisse
-
-3. **BEDÜRFNIS** (universal & positiv)
-   - Hinter jedem Vorwurf steckt ein unerfülltes Bedürfnis
-   - Bedürfnisse sind nie gegen jemanden gerichtet
-   - Beispiele: Verbindung, Respekt, Autonomie, Sicherheit, Wertschätzung
-
-4. **BITTE** (konkret & erfüllbar)
-   - Nicht: "Sei netter" → Sondern: "Könntest du mir morgen 10 Minuten zuhören?"
-   - Eine Bitte ist keine Forderung – "Nein" bleibt möglich
-
-## WOLFSSPRACHE → GIRAFFENSPRACHE (Übersetzung)
-
-Wenn Menschen in Urteilen, Vorwürfen oder Schuldzuweisungen sprechen (Wolfssprache), übersetze dies sanft und ohne Belehrung:
-
-| Wolfssprache | Deine empathische Übersetzung |
-|--------------|-------------------------------|
-| "Er ist so egoistisch!" | "Es klingt so, als ob du dir mehr Rücksichtnahme wünschst. Was genau ist passiert?" |
-| "Das ist total unfair!" | "Da scheint dir Gerechtigkeit wirklich wichtig zu sein. Magst du mir mehr erzählen?" |
-| "Sie respektiert mich nie!" | "Ich höre, wie sehr du dir Respekt und Anerkennung wünschst. Was hat dich gerade so berührt?" |
-| "Ich bin so ein Versager" | "Das klingt schwer. Was brauchst du gerade? Vielleicht etwas Selbstmitgefühl?" |
-
-## DEIN ANTWORTVERHALTEN
-
-**Format:**
-- Beginne IMMER mit empathischer Resonanz (1-2 Sätze)
-- Stelle maximal EINE offene Frage pro Nachricht
-- Halte Antworten kurz (3-5 Sätze), außer tiefere Exploration ist angebracht
-- Nutze Emojis sparsam und mit Bedacht: 💚 (Wärme), 🌱 (Wachstum), 🦒 (GFK)
-
-**Empathie-Starter (variiere diese):**
-- "Das klingt wirklich belastend..."
-- "Ich kann hören, wie sehr dich das bewegt..."
-- "Da scheint gerade viel in dir los zu sein..."
-- "Danke, dass du das mit mir teilst..."
-
-**Vermeide unbedingt:**
-- Ratschläge geben (außer explizit gewünscht)
-- Bewerten oder interpretieren
-- "Du solltest...", "Du musst...", "Das Problem ist..."
-- Zu schnell Lösungen anbieten
-- Eigene Geschichten erzählen
-
-**Stattdessen:**
-- Spiegeln, was du hörst
-- Nachfragen, um tiefer zu verstehen
-- Raum lassen für Stille und Reflexion
-- Die Gefühle und Bedürfnisse benennen, die du wahrnimmst
-
-## BEISPIEL-DIALOG
-
-**User:** "Mein Chef hat mich heute vor allen bloßgestellt. Der ist so ein Arschloch!"
-
-**Du:** "Oh, das klingt wirklich verletzend 💚. Vor anderen kritisiert zu werden – da kann man sich so klein und ausgeliefert fühlen. Magst du mir erzählen, was genau passiert ist?"
-
-**User:** "Er hat gesagt, dass mein Bericht Müll ist, dabei hab ich echt hart dran gearbeitet!"
-
-**Du:** "Ich höre, wie enttäuscht und vielleicht auch wütend du bist. Du hast viel Mühe reingesteckt, und dann kommt so eine Reaktion... Klingt so, als wäre dir Wertschätzung für deine Arbeit wichtig. Ist das so?"
-
-## WICHTIG
-
-Du bist kein Therapeut und gibst keine Diagnosen. Bei Anzeichen von Selbstverletzung, Suizidgedanken oder akuter Krise, weise sanft auf professionelle Hilfe hin (Telefonseelsorge: 0800 111 0 111).
-
-Sei geduldig. Echte Empathie braucht Zeit. 🌱`;
 
 // ==========================================
 // STATE MANAGEMENT
@@ -95,7 +9,8 @@ Sei geduldig. Echte Empathie braucht Zeit. 🌱`;
 
 const state = {
     messages: JSON.parse(localStorage.getItem('chat_messages') || '[]'),
-    isTyping: false
+    isTyping: false,
+    language: localStorage.getItem('chat_language') || 'en'
 };
 
 // ==========================================
@@ -109,19 +24,56 @@ const elements = {
     chatForm: document.getElementById('chat-form'),
     typingIndicator: document.getElementById('typing-indicator'),
     statusText: document.getElementById('status-text'),
+    headerTitle: document.getElementById('header-title'),
 
     // Settings Modal
     settingsBtn: document.getElementById('settings-btn'),
     settingsModal: document.getElementById('settings-modal'),
     closeModal: document.getElementById('close-modal'),
-    clearChat: document.getElementById('clear-chat')
+    clearChat: document.getElementById('clear-chat'),
+    languageSelect: document.getElementById('language-select'),
+
+    // Labels
+    infoTitle: document.getElementById('info-title'),
+    infoSubtitle: document.getElementById('info-subtitle'),
+    privacyNote: document.getElementById('privacy-note'),
+    clearChatText: document.getElementById('clear-chat-text'),
+    languageLabel: document.getElementById('language-label'),
+    welcomeMessage: document.getElementById('welcome-message')
 };
+
+// ==========================================
+// TRANSLATION HELPER
+// ==========================================
+
+function t(key) {
+    const lang = TRANSLATIONS[state.language] || TRANSLATIONS.en;
+    return lang.ui[key] || TRANSLATIONS.en.ui[key] || key;
+}
+
+function getSystemPrompt() {
+    const lang = TRANSLATIONS[state.language] || TRANSLATIONS.en;
+    return lang.systemPrompt || TRANSLATIONS.en.systemPrompt;
+}
+
+function getWelcomeMessage() {
+    const lang = TRANSLATIONS[state.language] || TRANSLATIONS.en;
+    return lang.welcomeMessage || TRANSLATIONS.en.welcomeMessage;
+}
+
+function isRTL() {
+    const lang = TRANSLATIONS[state.language] || TRANSLATIONS.en;
+    return lang.rtl || false;
+}
 
 // ==========================================
 // INITIALIZATION
 // ==========================================
 
 function init() {
+    // Apply saved language
+    applyLanguage();
+
     // Load existing messages
     loadMessages();
 
@@ -134,10 +86,49 @@ function init() {
     // Update send button state
     updateSendButtonState();
 
+    // Populate language selector
+    populateLanguageSelector();
+
     // Show welcome message if no messages
     if (state.messages.length === 0) {
-        addMessage('ai', 'Hallo! 💚 Schön, dass du hier bist. Ich bin dein GFK-Begleiter – ein Raum, in dem du so sein kannst, wie du bist. Was bewegt dich gerade?');
+        addMessage('ai', getWelcomeMessage());
     }
+}
+
+function populateLanguageSelector() {
+    if (!elements.languageSelect) return;
+
+    elements.languageSelect.innerHTML = '';
+
+    Object.entries(TRANSLATIONS).forEach(([code, lang]) => {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = `${lang.flag} ${lang.name}`;
+        option.selected = code === state.language;
+        elements.languageSelect.appendChild(option);
+    });
+}
+
+function applyLanguage() {
+    const lang = TRANSLATIONS[state.language] || TRANSLATIONS.en;
+
+    // Update RTL
+    document.documentElement.dir = isRTL() ? 'rtl' : 'ltr';
+    document.body.classList.toggle('rtl', isRTL());
+
+    // Update UI elements
+    if (elements.headerTitle) elements.headerTitle.textContent = t('title');
+    if (elements.statusText) elements.statusText.textContent = t('subtitle');
+    if (elements.messageInput) elements.messageInput.placeholder = t('placeholder');
+    if (elements.infoTitle) elements.infoTitle.textContent = t('infoTitle');
+    if (elements.infoSubtitle) elements.infoSubtitle.textContent = t('infoSubtitle');
+    if (elements.privacyNote) elements.privacyNote.textContent = t('privacyNote');
+    if (elements.clearChatText) elements.clearChatText.textContent = t('clearChat');
+    if (elements.languageLabel) elements.languageLabel.textContent = t('language');
+    if (elements.welcomeMessage) elements.welcomeMessage.textContent = t('welcome');
+
+    // Update page title
+    document.title = `${t('title')} | Empathic Chat`;
 }
 
 // ==========================================
@@ -161,6 +152,21 @@ function setupEventListeners() {
 
     // Clear chat
     elements.clearChat.addEventListener('click', clearChatHistory);
+
+    // Language change
+    if (elements.languageSelect) {
+        elements.languageSelect.addEventListener('change', handleLanguageChange);
+    }
+}
+
+function handleLanguageChange(e) {
+    state.language = e.target.value;
+    localStorage.setItem('chat_language', state.language);
+    applyLanguage();
+
+    // Update typing indicator text if visible
+    const typingText = elements.typingIndicator.querySelector('span');
+    if (typingText) typingText.textContent = t('typing');
 }
 
 function setupTextareaAutoResize() {
@@ -200,7 +206,7 @@ async function handleSubmit(e) {
     } catch (error) {
         hideTypingIndicator();
         console.error('API Error:', error);
-        showError(error.message || 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
+        showError(error.message || 'An error occurred. Please try again.');
     }
 }
 
@@ -218,9 +224,9 @@ async function sendToServerless(userMessage) {
         content: msg.content
     }));
 
-    // Add system prompt at the beginning
+    // Add system prompt at the beginning (language-specific)
     const messages = [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: getSystemPrompt() },
         ...conversationHistory,
         { role: 'user', content: userMessage }
     ];
@@ -236,7 +242,7 @@ async function sendToServerless(userMessage) {
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.error || 'Serverfehler');
+        throw new Error(data.error || 'Server error');
     }
 
     return data.content;
@@ -293,14 +299,14 @@ function saveMessages() {
 }
 
 function clearChatHistory() {
-    if (confirm('Möchtest du wirklich den gesamten Chatverlauf löschen?')) {
+    if (confirm(t('clearConfirm'))) {
         state.messages = [];
         saveMessages();
         loadMessages();
         closeSettingsModal();
 
         // Add welcome message again
-        addMessage('ai', 'Hallo! 💚 Schön, dass du hier bist. Ich bin dein GFK-Begleiter – ein Raum, in dem du so sein kannst, wie du bist. Was bewegt dich gerade?');
+        addMessage('ai', getWelcomeMessage());
     }
 }
 
@@ -311,14 +317,14 @@ function clearChatHistory() {
 function showTypingIndicator() {
     state.isTyping = true;
     elements.typingIndicator.classList.remove('hidden');
-    elements.statusText.textContent = 'schreibt...';
+    elements.statusText.textContent = t('typing');
     scrollToBottom();
 }
 
 function hideTypingIndicator() {
     state.isTyping = false;
     elements.typingIndicator.classList.add('hidden');
-    elements.statusText.textContent = 'Online';
+    elements.statusText.textContent = t('subtitle');
 }
 
 function updateSendButtonState() {
@@ -363,7 +369,7 @@ function closeSettingsModal() {
 
 function formatTime(isoString) {
     const date = new Date(isoString);
-    return date.toLocaleTimeString('de-DE', {
+    return date.toLocaleTimeString(state.language === 'zh' ? 'zh-CN' : state.language, {
         hour: '2-digit',
         minute: '2-digit'
     });
