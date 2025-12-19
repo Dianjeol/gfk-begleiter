@@ -40,8 +40,4 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# SPA fallback (if needed in the future)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# NOTE: No SPA fallback redirect needed - this was blocking /.netlify/functions/*
