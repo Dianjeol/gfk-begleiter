@@ -1,6 +1,8 @@
 /**
  * GFK Begleiter - Empathischer Chat mit DeepSeek AI
  * Gewaltfreie Kommunikation (GFK) nach Marshall B. Rosenberg
+ * 
+ * Version mit Netlify Serverless Function (kein User-API-Key nötig)
  */
 
 // ==========================================
@@ -92,7 +94,6 @@ Sei geduldig. Echte Empathie braucht Zeit. 🌱`;
 // ==========================================
 
 const state = {
-    apiKey: localStorage.getItem('deepseek_api_key') || '',
     messages: JSON.parse(localStorage.getItem('chat_messages') || '[]'),
     isTyping: false
 };
@@ -113,15 +114,7 @@ const elements = {
     settingsBtn: document.getElementById('settings-btn'),
     settingsModal: document.getElementById('settings-modal'),
     closeModal: document.getElementById('close-modal'),
-    apiKeyInput: document.getElementById('api-key'),
-    toggleKeyVisibility: document.getElementById('toggle-key-visibility'),
-    saveSettings: document.getElementById('save-settings'),
-    clearChat: document.getElementById('clear-chat'),
-
-    // Initial Overlay
-    apiKeyOverlay: document.getElementById('api-key-overlay'),
-    initialApiKey: document.getElementById('initial-api-key'),
-    startChat: document.getElementById('start-chat')
+    clearChat: document.getElementById('clear-chat')
 };
 
 // ==========================================
@@ -129,11 +122,8 @@ const elements = {
 // ==========================================
 
 function init() {
-    // Check if API key exists
-    if (state.apiKey) {
-        hideOverlay();
-        loadMessages();
-    }
+    // Load existing messages
+    loadMessages();
 
     // Set up event listeners
     setupEventListeners();
@@ -143,6 +133,11 @@ function init() {
 
     // Update send button state
     updateSendButtonState();
+
+    // Show welcome message if no messages
+    if (state.messages.length === 0) {
+        addMessage('ai', 'Hallo! 💚 Schön, dass du hier bist. Ich bin dein GFK-Begleiter – ein Raum, in dem du so sein kannst, wie du bist. Was bewegt dich gerade?');
+    }
 }
 
 // ==========================================
@@ -164,20 +159,8 @@ function setupEventListeners() {
         if (e.target === elements.settingsModal) closeSettingsModal();
     });
 
-    // API Key visibility toggle
-    elements.toggleKeyVisibility.addEventListener('click', toggleApiKeyVisibility);
-
-    // Save settings
-    elements.saveSettings.addEventListener('click', saveSettings);
-
     // Clear chat
     elements.clearChat.addEventListener('click', clearChatHistory);
-
-    // Initial API key flow
-    elements.startChat.addEventListener('click', handleStartChat);
-    elements.initialApiKey.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleStartChat();
-    });
 }
 
 function setupTextareaAutoResize() {
@@ -199,12 +182,6 @@ async function handleSubmit(e) {
     const message = elements.messageInput.value.trim();
     if (!message || state.isTyping) return;
 
-    // Check API key
-    if (!state.apiKey) {
-        showError('Bitte gib zuerst deinen DeepSeek API Key in den Einstellungen ein.');
-        return;
-    }
-
     // Add user message
     addMessage('user', message);
 
@@ -217,13 +194,13 @@ async function handleSubmit(e) {
     showTypingIndicator();
 
     try {
-        const response = await sendToDeepSeek(message);
+        const response = await sendToServerless(message);
         hideTypingIndicator();
         addMessage('ai', response);
     } catch (error) {
         hideTypingIndicator();
         console.error('API Error:', error);
-        showError(getErrorMessage(error));
+        showError(error.message || 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
     }
 }
 
@@ -235,7 +212,7 @@ function handleKeyDown(e) {
     }
 }
 
-async function sendToDeepSeek(userMessage) {
+async function sendToServerless(userMessage) {
     const conversationHistory = state.messages.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'assistant',
         content: msg.content
@@ -248,29 +225,21 @@ async function sendToDeepSeek(userMessage) {
         { role: 'user', content: userMessage }
     ];
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch('/.netlify/functions/chat', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.apiKey}`
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: messages,
-            temperature: 0.8,
-            max_tokens: 500,
-            presence_penalty: 0.1,
-            frequency_penalty: 0.1
-        })
+        body: JSON.stringify({ messages })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw { status: response.status, data: errorData };
+        throw new Error(data.error || 'Serverfehler');
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+    return data.content;
 }
 
 // ==========================================
@@ -329,6 +298,9 @@ function clearChatHistory() {
         saveMessages();
         loadMessages();
         closeSettingsModal();
+
+        // Add welcome message again
+        addMessage('ai', 'Hallo! 💚 Schön, dass du hier bist. Ich bin dein GFK-Begleiter – ein Raum, in dem du so sein kannst, wie du bist. Was bewegt dich gerade?');
     }
 }
 
@@ -371,25 +343,11 @@ function showError(message) {
     scrollToBottom();
 }
 
-function getErrorMessage(error) {
-    if (error.status === 401) {
-        return 'Ungültiger API Key. Bitte überprüfe deinen Key in den Einstellungen.';
-    } else if (error.status === 429) {
-        return 'Zu viele Anfragen. Bitte warte einen Moment.';
-    } else if (error.status === 500) {
-        return 'Der DeepSeek-Server hat gerade Probleme. Bitte versuche es später erneut.';
-    } else if (!navigator.onLine) {
-        return 'Keine Internetverbindung. Bitte überprüfe deine Verbindung.';
-    }
-    return 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
-}
-
 // ==========================================
 // SETTINGS MODAL
 // ==========================================
 
 function openSettingsModal() {
-    elements.apiKeyInput.value = state.apiKey;
     elements.settingsModal.classList.add('show');
     document.body.style.overflow = 'hidden';
 }
@@ -397,58 +355,6 @@ function openSettingsModal() {
 function closeSettingsModal() {
     elements.settingsModal.classList.remove('show');
     document.body.style.overflow = '';
-}
-
-function toggleApiKeyVisibility() {
-    const input = elements.apiKeyInput;
-    const isPassword = input.type === 'password';
-    input.type = isPassword ? 'text' : 'password';
-
-    // Update icon (eye open/closed)
-    const icon = document.getElementById('eye-icon');
-    if (isPassword) {
-        icon.innerHTML = '<path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" /><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />';
-    } else {
-        icon.innerHTML = '<path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />';
-    }
-}
-
-function saveSettings() {
-    const newKey = elements.apiKeyInput.value.trim();
-
-    if (newKey) {
-        state.apiKey = newKey;
-        localStorage.setItem('deepseek_api_key', newKey);
-    }
-
-    closeSettingsModal();
-}
-
-// ==========================================
-// INITIAL OVERLAY
-// ==========================================
-
-function handleStartChat() {
-    const key = elements.initialApiKey.value.trim();
-
-    if (!key) {
-        elements.initialApiKey.classList.add('ring-2', 'ring-red-400');
-        setTimeout(() => {
-            elements.initialApiKey.classList.remove('ring-2', 'ring-red-400');
-        }, 2000);
-        return;
-    }
-
-    state.apiKey = key;
-    localStorage.setItem('deepseek_api_key', key);
-    hideOverlay();
-
-    // Add welcome message from AI
-    addMessage('ai', 'Hallo! 💚 Schön, dass du hier bist. Ich bin dein GFK-Begleiter – ein Raum, in dem du so sein kannst, wie du bist. Was bewegt dich gerade?');
-}
-
-function hideOverlay() {
-    elements.apiKeyOverlay.classList.add('hidden');
 }
 
 // ==========================================

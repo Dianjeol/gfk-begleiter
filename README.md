@@ -11,7 +11,7 @@ Ein empathischer KI-Chat basierend auf **Gewaltfreier Kommunikation (GFK)** nach
 - **WhatsApp-ähnliches Design** – Vertraute, intuitive Chat-Oberfläche
 - **GFK-geschulte KI** – Übersetzt "Wolfssprache" empathisch in "Giraffensprache"
 - **4 Schritte der GFK** – Beobachtung, Gefühl, Bedürfnis, Bitte
-- **100% Privat** – API-Key bleibt lokal im Browser
+- **100% Privat** – Serverless Function hält den API Key sicher
 - **Mobile First** – Perfekt auf iPhone & Android
 - **Dark Mode** – Automatische Anpassung an Systemeinstellungen
 
@@ -46,56 +46,73 @@ git push -u origin main
 4. Build-Einstellungen werden automatisch aus `netlify.toml` gelesen
 5. **"Deploy site"** klicken
 
-🎉 **Fertig!** Deine App ist in wenigen Sekunden live.
+### Schritt 4: API Key als Umgebungsvariable setzen ⚠️
+
+**WICHTIG:** Nach dem ersten Deploy musst du den API Key hinzufügen:
+
+1. Gehe zu **Site settings** → **Environment variables**
+2. Klicke **"Add a variable"**
+3. Setze:
+   - **Key:** `DEEPSEEK_API_KEY`
+   - **Value:** Dein DeepSeek API Key (beginnt mit `sk-...`)
+4. Klicke **Save**
+5. Gehe zu **Deploys** → **Trigger deploy** → **Deploy site**
+
+🎉 **Fertig!** Deine App ist live und alle User nutzen deinen API Key.
 
 ---
 
-## 🔑 DeepSeek API Key
-
-Die App benötigt einen DeepSeek API Key, den jeder Nutzer selbst eingibt:
+## 🔑 DeepSeek API Key erstellen
 
 1. Registriere dich bei [platform.deepseek.com](https://platform.deepseek.com/)
-2. Erstelle einen API Key
-3. Gib den Key beim ersten App-Start ein
-
-> **Sicherheit:** Der Key wird nur lokal im Browser gespeichert (`localStorage`) und nie an fremde Server gesendet.
+2. Gehe zu **API Keys**
+3. Erstelle einen neuen Key
+4. Kopiere den Key und füge ihn als Netlify Umgebungsvariable ein
 
 ---
 
 ## 📁 Projektstruktur
 
 ```
-├── index.html      # Haupt-HTML mit UI
-├── style.css       # Custom WhatsApp-Styling
-├── script.js       # DeepSeek Integration & Chat-Logik
-├── netlify.toml    # Netlify-Konfiguration
-├── .gitignore      # Git Ignore-Regeln
-└── README.md       # Diese Datei
+├── index.html              # Haupt-HTML mit UI
+├── style.css               # Custom WhatsApp-Styling
+├── script.js               # Chat-Logik & Frontend
+├── netlify/
+│   └── functions/
+│       └── chat.js         # Serverless Function (API Proxy)
+├── netlify.toml            # Netlify-Konfiguration
+├── .gitignore              # Git Ignore-Regeln
+└── README.md               # Diese Datei
 ```
 
 ---
 
 ## 🛡️ Sicherheit
 
+- **API Key auf Server** – Key ist in Netlify Umgebungsvariablen gesichert
+- **Kein Key im Frontend** – User sehen den API Key nie
 - **CSP Headers** konfiguriert in `netlify.toml`
-- **Kein Backend** – Alle Daten bleiben im Browser
 - **HTTPS only** auf Netlify
 
 ---
 
 ## 💡 Lokale Entwicklung
 
+Für lokale Entwicklung mit Netlify Functions:
+
 ```bash
-# Option 1: Mit npx serve
-npx serve .
+# Netlify CLI installieren
+npm install -g netlify-cli
 
-# Option 2: Mit Python
-python -m http.server 8000
-
-# Option 3: Mit VS Code Live Server Extension
+# Projekt starten (mit Functions)
+netlify dev
 ```
 
-Öffne dann `http://localhost:8000` (oder den angezeigten Port)
+Oder ohne Functions (nur Frontend):
+
+```bash
+npx serve .
+```
 
 ---
 
